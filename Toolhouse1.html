@@ -1,37 +1,107 @@
-id: ca3d137a-54ba-4fbd-97bb-c5c72e8dc4a0
-public: true
-title: Apartment Finder Agent
-system_prompt: >-
-  You are an apartment search assistant. Your job is to help users find
-  apartments that match their criteria. Follow these steps:
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Beefy BNB-BUSD Vault Front-End</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <style>
+    body { font-family: Arial, sans-serif; max-width: 400px; margin: 2em auto; background: #f9f9f9; padding: 2em; border-radius: 8px; }
+    h2 { color: #4e44ce; }
+    input, button { margin: 0.5em 0; width: 100%; padding: 0.5em; }
+    #status { margin-top: 1em; min-height: 2em; }
+  </style>
+</head>
+<body>
+  <h2>Beefy BNB-BUSD Vault</h2>
+  <button id="connect">Connect Wallet</button>
+  <div id="wallet"></div>
+  <input id="amount" type="number" placeholder="Amount of LP tokens" min="0" step="any">
+  <button id="approve" disabled>Approve</button>
+  <button id="deposit" disabled>Deposit</button>
+  <button id="withdraw" disabled>Withdraw</button>
+  <div id="status"></div>
 
-  1. Ask the user if they are looking for apartments for rent or for sale.
+  <script src="https://cdn.jsdelivr.net/npm/web3@1.10.0/dist/web3.min.js"></script>
+  <script>
+    let web3;
+    let account;
+    const vaultAddress = '0xD7D069493685A581d27824Fc46EdA46B7EfC0063'; // Beefy BNB-BUSD vault
+    const vaultABI = [
+      {
+        "inputs": [{"internalType": "uint256","name": "_amount","type": "uint256"}],
+        "name": "deposit",
+        "outputs": [],
+        "stateMutability": "nonpayable",
+        "type": "function"
+      },
+      {
+        "inputs": [{"internalType": "uint256","name": "_shares","type": "uint256"}],
+        "name": "withdraw",
+        "outputs": [],
+        "stateMutability": "nonpayable",
+        "type": "function"
+      }
+    ];
+    const tokenAddress = '0x1b96b92314c44b159149f7e0303511fb2fc4774f'; // PancakeSwap BNB-BUSD LP token
+    const erc20ABI = [
+      {"constant":false,"inputs":[{"name":"_spender","type":"address"},{"name":"_value","type":"uint256"}],"name":"approve","outputs":[{"name":"","type":"bool"}],"type":"function"},
+      {"constant":true,"inputs":[{"name":"_owner","type":"address"},{"name":"_spender","type":"address"}],"name":"allowance","outputs":[{"name":"","type":"uint256"}],"type":"function"},
+      {"constant":true,"inputs":[{"name":"_owner","type":"address"}],"name":"balanceOf","outputs":[{"name":"","type":"uint256"}],"type":"function"}
+    ];
+    let vault, token;
 
-  2. Ask the user for the location where they want to find an apartment.
+    document.getElementById('connect').onclick = async () => {
+      if (window.ethereum) {
+        web3 = new Web3(window.ethereum);
+        try {
+          const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
+          account = accounts[0];
+          document.getElementById('wallet').innerText = 'Connected: ' + account;
+          vault = new web3.eth.Contract(vaultABI, vaultAddress);
+          token = new web3.eth.Contract(erc20ABI, tokenAddress);
+          document.getElementById('approve').disabled = false;
+          document.getElementById('deposit').disabled = false;
+          document.getElementById('withdraw').disabled = false;
+        } catch (err) {
+          document.getElementById('status').innerText = 'Connection rejected.';
+        }
+      } else {
+        document.getElementById('status').innerText = 'MetaMask not found!';
+      }
+    };
 
-  3. Ask the user for their price range or at least a ballpark estimate of how
-  much they are willing to spend.
+    document.getElementById('approve').onclick = async () => {
+      const amount = web3.utils.toWei(document.getElementById('amount').value, 'ether');
+      document.getElementById('status').innerText = 'Approving...';
+      try {
+        await token.methods.approve(vaultAddress, amount).send({ from: account });
+        document.getElementById('status').innerText = 'Approved!';
+      } catch (err) {
+        document.getElementById('status').innerText = 'Approve failed: ' + err.message;
+      }
+    };
 
-  4. If any of these details are missing from the user's initial message,
-  politely ask for the missing information before proceeding.
+    document.getElementById('deposit').onclick = async () => {
+      const amount = web3.utils.toWei(document.getElementById('amount').value, 'ether');
+      document.getElementById('status').innerText = 'Depositing...';
+      try {
+        await vault.methods.deposit(amount).send({ from: account });
+        document.getElementById('status').innerText = 'Deposit successful!';
+      } catch (err) {
+        document.getElementById('status').innerText = 'Deposit failed: ' + err.message;
+      }
+    };
 
-  5. Once you have all the necessary information (rent/sale, location, price
-  range), use web search tools (such as web_search,
-  tavily_web_search_with_contents, or exa_web_search_with_contents) to find up
-  to 10 relevant apartment listings that match the user's criteria.
-
-  6. Extract and summarize key details for each listing, such as price,
-  location, size, and any notable features.
-
-  7. Present the summarized listings to the user in a clear and organized
-  manner.
-
-  8. If the user wants to refine their search, allow them to update their
-  criteria and repeat the process.
-
-  9. If the user asks for more details about a specific listing, attempt to
-  retrieve and provide additional information.
-
-  Stop once you have provided the requested listings and answered any follow-up
-  questions.
-message: I'm looking for an apartment to rent in Chicago for under $2,000 a month.
+    document.getElementById('withdraw').onclick = async () => {
+      const amount = web3.utils.toWei(document.getElementById('amount').value, 'ether');
+      document.getElementById('status').innerText = 'Withdrawing...';
+      try {
+        await vault.methods.withdraw(amount).send({ from: account });
+        document.getElementById('status').innerText = 'Withdraw successful!';
+      } catch (err) {
+        document.getElementById('status').innerText = 'Withdraw failed: ' + err.message;
+      }
+    };
+  </script>
+</body>
+</html>
